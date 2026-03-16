@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HeartOS — Abduqodir AI</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;400;600;700&family=Crimson+Pro:ital,wght@0,300;0,400;1,300;1,400&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg:      #050508;
+  --surface: #0a0a12;
+  --border:  #1a1a2e;
+  --accent:  #e0245e;
+  --accent2: #ff6b9d;
+  --accent3: #c0392b;
+  --glow:    rgba(224,36,94,0.4);
+  --text:    #e8e8f0;
+  --dim:     #6b6b8a;
+  --mono:    'Share Tech Mono', monospace;
+  --display: 'Rajdhani', sans-serif;
+  --serif:   'Crimson Pro', serif;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--mono);
+  min-height: 100vh;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Scanlines */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.07) 2px, rgba(0,0,0,0.07) 4px);
+  pointer-events: none;
+  z-index: 1000;
+  animation: scanMove 8s linear infinite;
+}
+@keyframes scanMove {
+  0%   { background-position: 0 0; }
+  100% { background-position: 0 100px; }
+}
+
+/* Vignette */
+body::after {
+  content: '';
+  position: fixed; inset: 0;
+  background: radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.82) 100%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+#bgCanvas {
+  position: fixed; inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Overlays */
+#blackout {
+  position: fixed; inset: 0;
+  background: #000; z-index: 800;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.5s;
+}
+#blackout.on { opacity: 1; pointer-events: all; }
+
+#flashEl {
+  position: fixed; inset: 0;
+  background: var(--accent); z-index: 790;
+  opacity: 0; pointer-events: none;
+}
+#flashEl.flash { animation: flashAnim 0.35s forwards; }
+@keyframes flashAnim {
+  0%   { opacity: 0.35; }
+  40%  { opacity: 0; }
+  70%  { opacity: 0.12; }
+  100% { opacity: 0; }
+}
+
+/* ======= INTRO SCREEN ======= */
+#introScreen {
+  position: fixed; inset: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: rgba(2,2,5,0.95);
+  backdrop-filter: blur(14px);
+  z-index: 300;
+  padding: 24px;
+  animation: fadeIn 0.7s ease-out forwards;
+}
+#introScreen.hidden { animation: fadeOut 0.6s ease-in forwards; pointer-events: none; }
+
+.intro-box {
+  max-width: 420px; width: 100%;
+  padding: 40px 32px;
+  border: 1px solid rgba(224,36,94,0.35);
+  background: rgba(5,5,8,0.95);
+  text-align: center;
+  position: relative;
+}
+/* corner decorations */
+.intro-box::before, .intro-box::after {
+  content: '';
+  position: absolute;
+  width: 14px; height: 14px;
+  border-color: var(--accent);
+  border-style: solid;
+}
+.intro-box::before { top: -1px; left: -1px; border-width: 2px 0 0 2px; }
+.intro-box::after  { bottom: -1px; right: -1px; border-width: 0 2px 2px 0; }
+
+.intro-heart {
+  font-size: 44px;
+  display: block;
+  margin-bottom: 18px;
+  animation: heartbeat 1.6s ease-in-out infinite;
+}
+@keyframes heartbeat {
+  0%,100% { transform: scale(1); }
+  25%      { transform: scale(1.18); }
+  50%      { transform: scale(1); }
+}
+
+.intro-box h1 {
+  font-family: var(--display);
+  font-size: 2.8rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: var(--accent);
+  text-shadow: 0 0 25px var(--glow), 0 0 50px rgba(224,36,94,0.15);
+  margin-bottom: 12px;
+}
+.intro-box .tagline {
+  font-family: var(--serif);
+  font-size: 0.95rem;
+  color: var(--dim);
+  font-style: italic;
+  margin-bottom: 30px;
+  line-height: 1.6;
+}
+.start-btn {
+  width: 100%;
+  padding: 14px;
+  background: transparent;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  font-family: var(--display);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.3s;
+  margin-bottom: 12px;
+  position: relative;
+  overflow: hidden;
+}
+.start-btn::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(224,36,94,0.1), transparent);
+  transform: translateX(-100%);
+  transition: transform 0.5s;
+}
+.start-btn:hover { background: rgba(224,36,94,0.1); box-shadow: 0 0 20px var(--glow); color: #fff; }
+.start-btn:hover::before { transform: translateX(100%); }
+.intro-hint { font-size: 0.65rem; color: var(--dim); letter-spacing: 0.15em; }
+
+/* ======= BOOT SCREEN ======= */
+#bootScreen {
+  position: fixed; inset: 0;
+  background: var(--bg);
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 290;
+  padding: 2rem;
+}
+.boot-logo {
+  font-family: var(--display);
+  font-size: clamp(2.5rem, 7vw, 4.5rem);
+  font-weight: 700;
+  letter-spacing: 0.25em;
+  color: var(--accent);
+  text-shadow: 0 0 35px var(--glow), 0 0 70px rgba(224,36,94,0.2);
+  margin-bottom: 0.4rem;
+  opacity: 0;
+  animation: fadeIn 0.5s 0.2s forwards;
+}
+.boot-sub {
+  font-size: 0.68rem;
+  color: var(--dim);
+  letter-spacing: 0.45em;
+  margin-bottom: 3rem;
+  opacity: 0;
+  animation: fadeIn 0.5s 0.7s forwards;
+}
+.boot-lines { width: min(500px, 90vw); text-align: left; }
+.boot-line {
+  font-size: 0.75rem;
+  padding: 0.22rem 0;
+  opacity: 0;
+  color: var(--dim);
+  transition: color 0.3s;
+}
+.boot-line::before { content: '> '; color: var(--accent); }
+.boot-line.active { color: #4ade80; }
+.boot-line.done   { color: rgba(255,255,255,0.25); }
+.boot-progress {
+  width: min(500px, 90vw); height: 2px;
+  background: var(--border);
+  margin-top: 2rem; overflow: hidden;
+  opacity: 0; animation: fadeIn 0.5s 1s forwards;
+}
+.boot-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent3), var(--accent), var(--accent2));
+  width: 0%;
+  box-shadow: 0 0 12px var(--glow);
+  transition: width 0.15s ease;
+}
+
+/* ======= MAIN APP ======= */
+#app {
+  position: fixed; inset: 0;
+  display: flex;
+  flex-direction: column;
+  z-index: 10;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.8s;
+}
+#app.visible { opacity: 1; pointer-events: all; }
+
+/* Header */
+.hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(5,5,8,0.95);
+  backdrop-filter: blur(10px);
+  flex-shrink: 0;
+  position: relative; z-index: 20;
+}
+.hdr-left  { display: flex; align-items: center; gap: 12px; }
+.hdr-right { display: flex; gap: 8px; align-items: center; }
+
+.status-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #4ade80;
+  box-shadow: 0 0 10px #4ade80;
+  animation: blink 2s infinite;
+}
+@keyframes blink {
+  0%,100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.55; transform: scale(0.75); }
+}
+
+.hdr-title {
+  font-family: var(--display);
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  color: var(--accent);
+  text-shadow: 0 0 16px var(--glow);
+}
+.hdr-meta { font-size: 0.62rem; color: var(--dim); letter-spacing: 0.22em; }
+
+.hdr-tag {
+  font-size: 0.6rem;
+  color: var(--accent);
+  border: 1px solid rgba(224,36,94,0.3);
+  padding: 2px 8px;
+  letter-spacing: 0.1em;
+  animation: tagFlicker 4s infinite;
+}
+@keyframes tagFlicker {
+  0%,96%,100% { border-color: rgba(224,36,94,0.3); }
+  97% { border-color: rgba(224,36,94,0.9); box-shadow: 0 0 8px var(--glow); }
+}
+
+/* Chat Area */
+.chat-area {
+  flex: 1; overflow-y: auto;
+  padding: 18px 20px;
+  display: flex; flex-direction: column; gap: 14px;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  position: relative; z-index: 10;
+}
+.chat-area::-webkit-scrollbar { width: 4px; }
+.chat-area::-webkit-scrollbar-track { background: transparent; }
+.chat-area::-webkit-scrollbar-thumb { background: var(--border); }
+
+/* ---- Message base ---- */
+.msg { display: flex; flex-direction: column; opacity: 0; animation: msgIn 0.4s forwards; }
+@keyframes msgIn { to { opacity: 1; transform: translateY(0); } from { opacity: 0; transform: translateY(8px); } }
+
+.msg.ai   { align-self: flex-start; max-width: min(660px, 92%); }
+.msg.user { align-self: flex-end;   max-width: min(480px, 80%); }
+
+.msg-label {
+  font-size: 0.58rem;
+  letter-spacing: 0.22em;
+  margin-bottom: 5px;
+  color: var(--dim);
+}
+.msg.ai   .msg-label { color: var(--accent); }
+.msg.user .msg-label { text-align: right; }
+
+.msg-bubble {
+  padding: 12px 16px;
+  font-size: 0.82rem;
+  line-height: 1.85;
+  position: relative;
+}
+
+/* AI bubble — sharp left border */
+.msg.ai .msg-bubble {
+  background: rgba(224,36,94,0.04);
+  border: 1px solid rgba(224,36,94,0.18);
+  border-left: 3px solid var(--accent);
+  font-family: var(--serif);
+  font-size: 1.02rem;
+  color: #d4d4e8;
+  white-space: pre-line;
+}
+
+/* System bubble */
+.msg.system .msg-bubble {
+  background: rgba(74,222,128,0.04);
+  border: 1px solid rgba(74,222,128,0.14);
+  border-left: 3px solid #4ade80;
+  font-size: 0.72rem;
+  color: #4ade80;
+  font-family: var(--mono);
+}
+
+/* User bubble */
+.msg.user .msg-bubble {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-right: 3px solid rgba(224,36,94,0.5);
+  font-size: 0.82rem;
+  text-align: right;
+}
+
+/* Glow span */
+.msg-bubble span.glow {
+  color: var(--accent2);
+  text-shadow: 0 0 10px var(--glow);
+  font-weight: 600;
+}
+
+/* Typing dots */
+.typing-dots { display: flex; gap: 5px; padding: 2px 0; }
+.typing-dots span {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--glow);
+  animation: dotBounce 1.2s infinite;
+}
+.typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+.typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes dotBounce {
+  0%,60%,100% { transform: translateY(0); opacity: 0.4; }
+  30%          { transform: translateY(-6px); opacity: 1; }
+}
+
+/* ---- Options Grid ---- */
+.opts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(265px, 1fr));
+  gap: 8px;
+  animation: msgIn 0.4s forwards;
+  max-width: min(760px, 100%);
+}
+
+.opt-btn {
+  background: transparent;
+  border: 1px solid rgba(224,36,94,0.22);
+  color: var(--text);
+  padding: 11px 14px;
+  font-family: var(--serif);
+  font-size: 0.9rem;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.25s;
+  position: relative;
+  overflow: hidden;
+  line-height: 1.45;
+}
+.opt-btn::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg, transparent, rgba(224,36,94,0.07));
+  opacity: 0; transition: opacity 0.25s;
+}
+.opt-btn .opt-num {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  color: var(--accent);
+  display: block;
+  margin-bottom: 3px;
+  letter-spacing: 0.08em;
+}
+.opt-btn:hover {
+  border-color: var(--accent);
+  color: #fff;
+  box-shadow: 0 0 14px rgba(224,36,94,0.2), inset 0 0 12px rgba(224,36,94,0.04);
+  transform: translateY(-1px);
+}
+.opt-btn:hover::before { opacity: 1; }
+.opt-btn:active { transform: translateY(0) scale(0.99); }
+.opt-btn:disabled { opacity: 0.3; pointer-events: none; }
+
+/* ---- Reveal block ---- */
+.reveal-block {
+  background: var(--bg);
+  border: 1px solid rgba(224,36,94,0.25);
+  border-left: 3px solid var(--accent);
+  padding: 16px 18px;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: #4ade80;
+  line-height: 2;
+  max-width: min(660px, 92%);
+  align-self: flex-start;
+  animation: msgIn 0.4s forwards;
+}
+.reveal-block .rpath { color: var(--dim); margin-bottom: 6px; }
+.reveal-text {
+  font-family: var(--display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--accent);
+  text-shadow: 0 0 22px var(--glow), 0 0 45px rgba(224,36,94,0.2);
+  display: block;
+  margin-top: 10px;
+  line-height: 1.5;
+}
+
+/* Glitch */
+.glitch-w { position: relative; display: inline-block; }
+.glitch-w.on::before, .glitch-w.on::after {
+  content: attr(data-text);
+  position: absolute; inset: 0;
+  animation: glitchA 0.4s steps(2) 2;
+}
+.glitch-w.on::before { color: #0ff; clip-path: polygon(0 0,100% 0,100% 45%,0 45%); transform: translateX(-3px); opacity: 0.7; }
+.glitch-w.on::after  { color: #f0f; clip-path: polygon(0 55%,100% 55%,100% 100%,0 100%); transform: translateX(3px); opacity: 0.7; }
+@keyframes glitchA {
+  0%   { transform: translateX(-3px); opacity: 0.8; }
+  50%  { transform: translateX(3px); opacity: 0; }
+  100% { transform: translateX(0); opacity: 0; }
+}
+
+/* ---- Final choices ---- */
+.final-choices {
+  display: flex; gap: 12px; flex-wrap: wrap;
+  animation: msgIn 0.4s forwards;
+}
+.final-btn {
+  background: transparent;
+  border: 1px solid;
+  padding: 12px 26px;
+  font-family: var(--display);
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+.final-btn.yes { border-color: var(--accent); color: var(--accent); }
+.final-btn.yes:hover {
+  background: var(--accent); color: #fff;
+  box-shadow: 0 0 28px var(--glow), 0 0 55px rgba(224,36,94,0.22);
+  transform: scale(1.04);
+}
+.final-btn.wait { border-color: rgba(255,255,255,0.15); color: var(--dim); }
+.final-btn.wait:hover { border-color: rgba(255,255,255,0.35); color: var(--text); }
+
+/* ---- Telegram btn ---- */
+.tg-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: linear-gradient(135deg, #1565c0, #0097b2);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.15);
+  padding: 13px 22px;
+  font-family: var(--display);
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  text-decoration: none;
+  box-shadow: 0 4px 20px rgba(0,100,200,0.4);
+  transition: all 0.3s;
+  animation: msgIn 0.4s forwards;
+}
+.tg-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,100,200,0.6); }
+
+/* Footer */
+.footer {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 0.6rem; color: var(--dim); letter-spacing: 0.15em;
+  flex-shrink: 0;
+  background: rgba(5,5,8,0.95);
+  position: relative; z-index: 20;
+}
+.footer-pulse { display: flex; gap: 3px; align-items: center; }
+.footer-pulse span {
+  width: 2px; background: var(--accent); border-radius: 1px;
+  animation: waveBar 1.1s ease-in-out infinite;
+}
+.footer-pulse span:nth-child(1) { height: 7px; }
+.footer-pulse span:nth-child(2) { height: 13px; animation-delay: 0.1s; }
+.footer-pulse span:nth-child(3) { height: 9px;  animation-delay: 0.2s; }
+.footer-pulse span:nth-child(4) { height: 15px; animation-delay: 0.15s; }
+.footer-pulse span:nth-child(5) { height: 8px;  animation-delay: 0.3s; }
+.footer-pulse span:nth-child(6) { height: 11px; animation-delay: 0.05s; }
+@keyframes waveBar {
+  0%,100% { transform: scaleY(0.5); opacity: 0.4; }
+  50%      { transform: scaleY(1);   opacity: 1; }
+}
+
+/* Floating heart emoji */
+.hfloat {
+  position: fixed; pointer-events: none; z-index: 700;
+  animation: hRise 2.2s ease-out forwards;
+  font-size: 18px;
+}
+@keyframes hRise {
+  0%   { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-140px) scale(0.4); }
+}
+
+@keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+
+/* Mobile */
+@media (max-width: 560px) {
+  .opts-grid { grid-template-columns: 1fr; }
+  .final-choices { flex-direction: column; }
+  .hdr-title { font-size: 0.95rem; }
+  .msg.ai .msg-bubble { font-size: 0.96rem; }
+  .chat-area { padding: 12px 14px; }
+}
+</style>
+</head>
+<body>
+
+<canvas id="bgCanvas"></canvas>
+<div id="blackout"></div>
+<div id="flashEl"></div>
+
+<!-- ======= INTRO ======= -->
+<div id="introScreen">
+  <div class="intro-box">
+    <span class="intro-heart">❤️</span>
+    <h1>HeartOS</h1>
+    <p class="tagline">"Bu oddiy chatbot emas…<br>bu yuragimning sun'iy nusxasi."</p>
+    <button class="start-btn" id="startBtn">▶ Boshlash</button>
+    <p class="intro-hint">// boshlash uchun bosing</p>
+  </div>
+</div>
+
+<!-- ======= BOOT ======= -->
+<div id="bootScreen">
+  <div class="boot-logo">HEART<span style="color:#fff;opacity:0.3">OS</span></div>
+  <div class="boot-sub">ABDUQODIR AI · v2.4.1 · EMOTION ENGINE</div>
+  <div class="boot-lines" id="bootLines"></div>
+  <div class="boot-progress"><div class="boot-bar" id="bootBar"></div></div>
+</div>
+
+<!-- ======= MAIN APP ======= -->
+<div id="app">
+  <div class="hdr">
+    <div class="hdr-left">
+      <div class="status-dot"></div>
+      <div>
+        <div class="hdr-title">HeartOS — Abduqodir AI</div>
+        <div class="hdr-meta">EMOTION ENGINE · ACTIVE</div>
+      </div>
+    </div>
+    <div class="hdr-right">
+      <div class="hdr-tag">❤ ONLINE</div>
+      <div class="hdr-tag">ENC: ON</div>
+    </div>
+  </div>
+
+  <div class="chat-area" id="chat"></div>
+
+  <div class="footer">
+    <div>HeartOS v2.4.1 · ENCRYPTED · PERSONAL</div>
+    <div class="footer-pulse">
+      <span></span><span></span><span></span><span></span><span></span><span></span>
+    </div>
+    <div>EMOTION ENGINE · ACTIVE</div>
+  </div>
+</div>
+
+<script>
+class HeartOS {
+  constructor() {
+    this.chat       = document.getElementById('chat');
+    this.bootScreen = document.getElementById('bootScreen');
+    this.bootLines  = document.getElementById('bootLines');
+    this.bootBar    = document.getElementById('bootBar');
+    this.app        = document.getElementById('app');
+    this.intro      = document.getElementById('introScreen');
+    this.started    = false;
+    this.selIdx     = 0;
+
+    this.questions = [
+      {
+        title: '1️⃣ U meni qachon sevib qolgan?',
+        res: 'U seni birinchi ko\'rgan kunini hali ham eslaydi…\nO\'sha kuni sen buni oddiy kun deb o\'ylagandirsan.\nLekin uning hayotida kichkina o\'zgarish boshlangandi.'
+      },
+      {
+        title: '2️⃣ U meni nega bunchalik qadrlaydi?',
+        res: 'Chunki sen uning hayotida shovqin qilmay turib ham <span class="glow">yuragida</span> iz qoldirgan insonsan.'
+      },
+      {
+        title: '3️⃣ U meni sog\'inadimi?',
+        res: 'Ba\'zan odam sog\'inishini yashiradi…\nlekin u telefoniga bexosdan qarab qolganida\naslida kimni kutayotganini yaxshi biladi.'
+      },
+      {
+        title: '4️⃣ U men haqimda nima o\'ylaydi?',
+        res: 'U seni mukammal deb o\'ylamaydi…\nlekin sen borliging bilan uning uchun yetarli deb o\'ylaydi.'
+      },
+      {
+        title: '5️⃣ U meni birinchi ko\'rganida nimani his qilgan?',
+        res: 'Avvaliga oddiy qarash edi…\nkeyin esa <span class="glow">yuragi</span> o\'sha qarashni unutolmay qo\'ydi.'
+      },
+      {
+        title: '6️⃣ U meni baxtli qila oladimi?',
+        res: 'U bunga kafolat bera olmaydi…\nlekin seni xafa qilmaslik uchun harakat qilishiga shubha yo\'q.'
+      },
+      {
+        title: '7️⃣ U mendan nimani istaydi?',
+        res: 'Ko\'p narsa emas…\nfaqat <span class="glow">qalbingda</span> o\'zi uchun kichkina joy bo\'lishini.'
+      },
+      {
+        title: '8️⃣ Agar men yo\'q desam nima bo\'ladi?',
+        res: 'Unda u seni majburlamaydi.\nChunki haqiqiy tuyg\'ular tanlovni hurmat qilishni ham biladi.'
+      },
+      {
+        title: '9️⃣ Nega u bu dastur yozdi?',
+        res: 'Chunki ba\'zan inson <span class="glow">yuragidagi</span> gaplarni oddiy so\'z bilan aytolmaydi…\nshunda u kod orqali gapiradi.'
+      },
+      {
+        title: '🔟 U menga aytmagan yana qanday gaplari bor?',
+        res: 'U senga ko\'p narsani aytmagan…\nlekin eng muhimini bilishing kerak:\nsen uning <span class="glow">yuragida</span> tasodifan paydo bo\'lgan inson emassan.'
+      },
+      {
+        title: '1️⃣1️⃣ Haqiqiy javobni ayt',
+        res: '__REVEAL__'
+      },
+      {
+        title: '1️⃣2️⃣ U meni oxirgi marta qachon o\'ylagan?',
+        res: 'Aniq vaqtni aytish qiyin…\nchunki u seni o\'ylashni to\'xtatgan payt hali kuzatilmagan.'
+      },
+      {
+        title: '1️⃣3️⃣ U meni yo\'qotishdan qo\'rqadimi?',
+        res: 'Ha…\nlekin u bundan ko\'ra ko\'proq seni baxtsiz qilib qo\'yishdan qo\'rqadi.'
+      },
+      {
+        title: '1️⃣4️⃣ Agar men uning hayotidan ketib qolsam nima bo\'ladi?',
+        res: 'Unda u seni majburlab ushlab qolmaydi.\nLekin yuragining bir qismi seni eslab yashashda davom etadi.'
+      },
+      {
+        title: '🔐 Sirli savol: Uning telefonidagi sir nima?',
+        res: 'Men uning telefonini ko\'ra olmayman…\nlekin u yuragida saqlagan narsalarni bilaman.\n\nMasalan…\n5-dekabr kuni O\'zbekiston tarixi fanidan yechgan testlaringni eslaysanmi?\n\nO\'sha kuni sen tuzgan testing unga tushgandi.\nSen esa test javoblari yozilgan varoqni unga berganding.\nQiziq tomoni shundaki…\nu o\'sha varoqni tashlab yubormagan.\n\nAksincha… u hali ham uni saqlab qo\'ygan.'
+      },
+      {
+        title: '⏳ Hisoblaydigan savol: U meni qachondan beri sevadi?',
+        res: '__TIMER__'
+      }
+    ];
+
+    this.initParticles();
+    document.getElementById('startBtn').addEventListener('click', () => this.start());
+  }
+
+  /* ===== BOOT & START ===== */
+  async start() {
+    if (this.started) return;
+    this.started = true;
+
+    this.intro.classList.add('hidden');
+    await this.wait(600);
+    this.intro.style.display = 'none';
+
+    this.bootScreen.style.display = 'flex';
+    await this.runBoot();
+
+    this.bootScreen.style.display = 'none';
+    this.app.classList.add('visible');
+    await this.wait(400);
+    this.chatInit();
+  }
+
+  async runBoot() {
+    const lines = [
+      { t: 'Initializing Heart System…',        d: 450 },
+      { t: 'Loading core modules…',              d: 580 },
+      { t: 'Loading memories…',                  d: 500 },
+      { t: 'Connecting to emotion database…',    d: 640 },
+      { t: 'Emotion engine activated…',          d: 400 },
+      { t: 'Encrypting personal data…',          d: 520 },
+      { t: 'Loading /heart/true_feelings.txt…',  d: 600 },
+      { t: 'System ready. Welcome.',             d: 350 }
+    ];
+    this.bootLines.innerHTML = '';
+    this.bootBar.style.width = '0%';
+
+    for (let i = 0; i < lines.length; i++) {
+      const el = document.createElement('div');
+      el.className = 'boot-line';
+      el.textContent = lines[i].t;
+      this.bootLines.appendChild(el);
+      await this.wait(lines[i].d);
+      el.style.opacity = '1';
+      el.classList.add('active');
+      this.bootBar.style.width = ((i + 1) / lines.length * 100) + '%';
+      if (i > 0) {
+        const p = this.bootLines.children[i - 1];
+        p.classList.remove('active');
+        p.classList.add('done');
+      }
+    }
+    await this.wait(650);
+  }
+
+  /* ===== CHAT INIT ===== */
+  async chatInit() {
+    await this.sysMsg('Initializing Heart System…');
+    await this.wait(800);
+    await this.sysMsg('Loading memories…');
+    await this.wait(800);
+    await this.sysMsg('Emotion engine activated…');
+    await this.wait(1300);
+
+    await this.aiMsg('Salom…');
+    await this.wait(450);
+    await this.aiMsg('Agar sen bu sahifani ochgan bo\'lsang, demak men yaratgan kichkina sun\'iy intellekt bilan gaplashmoqchisan.');
+    await this.wait(600);
+    await this.aiMsg('Men oddiy AI emasman.\nMen Abduqodirning <span class="glow">yuragidagi</span> hislarni tushuntirish uchun yaratilgan kichkina dasturman.');
+    await this.wait(800);
+    await this.aiMsg('Sen u haqida nimani bilmoqchisan?');
+
+    this.showOptions();
+  }
+
+  /* ===== OPTIONS ===== */
+  clearOpts() {
+    this.chat.querySelectorAll('.opts-grid, .final-choices').forEach(e => e.remove());
+  }
+
+  showOptions() {
+    this.clearOpts();
+    const grid = document.createElement('div');
+    grid.className = 'opts-grid';
+
+    this.questions.forEach((q, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'opt-btn';
+      btn.innerHTML = `<span class="opt-num">${String(i+1).padStart(2,'0')} //</span>${q.title}`;
+      btn.addEventListener('click', e => {
+        this.heartBurst(e.clientX, e.clientY, 10);
+        this.pickOption(i);
+      });
+      grid.appendChild(btn);
+    });
+
+    this.chat.appendChild(grid);
+    this.scrollDown();
+  }
+
+  async pickOption(idx) {
+    this.selIdx = idx;
+    this.clearOpts();
+    await this.userMsg(this.questions[idx].title);
+    await this.wait(600);
+    await this.answerFor(idx);
+  }
+
+  async answerFor(idx) {
+    const q = this.questions[idx];
+    let res = q.res;
+
+    if (res === '__REVEAL__') { await this.doReveal(); return; }
+
+    if (res === '__TIMER__') {
+      const d = Math.floor((new Date() - new Date(2015, 8, 2)) / 86400000);
+      res = `Men bir narsani hisoblab ko\'rdim…\nSeni sevishni boshlagan payt — 2-sentyabr 2015.\nOshandan beri ${d} kun o\'tibdi.\n\nBu sanani hisoblashim, sen unga qancha uzoqdan sevadiganini ko\'rsatadi.`;
+    }
+
+    const typing = this.addTyping();
+    const tLen = res.replace(/<[^>]+>/g, '').length;
+    await this.wait(Math.min(700 + tLen * 16, 2800));
+    typing.remove();
+
+    await this.aiMsg(res);
+    await this.wait(500);
+    await this.showNav();
+  }
+
+  /* ===== REVEAL ===== */
+  async doReveal() {
+    const typing = this.addTyping();
+    await this.wait(1100);
+    typing.remove();
+
+    await this.sysMsg('Accessing hidden file…');
+    await this.wait(700);
+
+    // Blackout
+    const bl = document.getElementById('blackout');
+    bl.classList.add('on');
+    await this.wait(1900);
+    bl.classList.remove('on');
+    await this.wait(400);
+
+    // Flash
+    const fl = document.getElementById('flashEl');
+    fl.classList.add('flash');
+    setTimeout(() => fl.classList.remove('flash'), 500);
+
+    await this.sysMsg('Decrypting /heart/true_feelings.txt…');
+    await this.wait(700);
+    await this.sysMsg('Opening /heart/true_feelings.txt');
+    await this.wait(1000);
+
+    await this.aiMsg('Haqiqiy javob juda oddiy…');
+    await this.wait(900);
+
+    // Reveal block
+    const block = document.createElement('div');
+    block.className = 'reveal-block';
+    const gw = document.createElement('span');
+    gw.className = 'reveal-text glitch-w';
+    gw.setAttribute('data-text', 'U seni sevadi.');
+    gw.textContent = 'U seni sevadi.';
+    block.innerHTML = `
+      <div class="rpath">$ cat /heart/true_feelings.txt</div>
+      <div>&gt; Decryption complete.</div>
+      <div>&gt; Reading file contents…</div>
+    `;
+    block.appendChild(gw);
+    this.chat.appendChild(block);
+    this.scrollDown();
+
+    setTimeout(() => {
+      gw.classList.add('on');
+      setTimeout(() => gw.classList.remove('on'), 700);
+    }, 300);
+
+    // Flying hearts
+    for (let i = 0; i < 9; i++) {
+      setTimeout(() => this.floatHeart(
+        window.innerWidth * (0.15 + Math.random() * 0.7),
+        window.innerHeight * (0.2 + Math.random() * 0.6)
+      ), i * 180);
+    }
+
+    await this.wait(1500);
+    // Nav tugmalarini ko'rsat — xuddi boshqa savollardek
+    await this.showNav();
+  }
+
+  /* ===== NAV ===== */
+  async showNav() {
+    await this.wait(700);
+    this.clearOpts();
+
+    const grid = document.createElement('div');
+    grid.className = 'opts-grid';
+    grid.style.gridTemplateColumns = 'repeat(3, 1fr)';
+
+    const navs = [
+      { t: '➡️ Keyingi savolga', v: 'next' },
+      { t: '⬅️ Ortga qaytish',   v: 'back' },
+      { t: '💾 Tugallash',       v: 'end' }
+    ];
+    navs.forEach(n => {
+      const btn = document.createElement('button');
+      btn.className = 'opt-btn';
+      btn.textContent = n.t;
+      btn.addEventListener('click', () => this.handleNav(n.v));
+      grid.appendChild(btn);
+    });
+
+    this.chat.appendChild(grid);
+    this.scrollDown();
+  }
+
+  async handleNav(v) {
+    this.clearOpts();
+    const tot = this.questions.length;
+    if (v === 'next') {
+      const ni = this.selIdx === tot - 1 ? 0 : this.selIdx + 1;
+      await this.userMsg('➡️ Keyingi savolga');
+      await this.wait(600);
+      this.selIdx = ni;
+      this.showOptions();
+    } else if (v === 'back') {
+      const pi = this.selIdx === 0 ? tot - 1 : this.selIdx - 1;
+      await this.userMsg('⬅️ Ortga qaytish');
+      await this.wait(600);
+      this.selIdx = pi;
+      this.showOptions();
+    } else {
+      await this.userMsg('💾 Tugallash');
+      await this.wait(600);
+      await this.showFinal();
+    }
+  }
+
+  /* ===== FINAL ===== */
+  async showFinal() {
+    this.clearOpts();
+    await this.wait(700);
+    await this.aiMsg('Men faqat kodman…\nlekin bu so\'zlarni yozgan yurak haqiqiy.');
+    await this.wait(900);
+    await this.aiMsg('Agar sen bu yerga qadar o\'qigan bo\'lsang…\ndemak uning yuragiga allaqachon kirib bo\'lgansan.');
+    await this.wait(800);
+    await this.aiMsg('Bu hikoyaning davomida sen ham bo\'lishni xohlaysanmi?');
+    await this.wait(500);
+
+    const fc = document.createElement('div');
+    fc.className = 'final-choices';
+    fc.innerHTML = `
+      <button class="final-btn yes">❤️ Ha, davomini birga yozamiz</button>
+      <button class="final-btn wait">🤍 Biroz vaqt kerak</button>
+    `;
+    this.chat.appendChild(fc);
+
+    fc.querySelector('.yes').addEventListener('click', e => {
+      this.heartBurst(e.clientX, e.clientY, 16);
+      fc.querySelectorAll('.final-btn').forEach(b => b.disabled = true);
+      this.handleYes();
+    });
+    fc.querySelector('.wait').addEventListener('click', e => {
+      this.heartBurst(e.clientX, e.clientY, 8);
+      fc.querySelectorAll('.final-btn').forEach(b => b.disabled = true);
+      this.handleNo();
+    });
+
+    this.scrollDown();
+  }
+
+  async handleYes() {
+    this.clearOpts();
+    await this.userMsg('❤️ Ha, davomini birga yozamiz');
+    await this.wait(900);
+    await this.aiMsg('Unda men o\'z vazifamni tugatdim…\nEndi haqiqiy Abduqodir bilan gaplashish navbati. 💗');
+    await this.wait(700);
+    this.showTgBtn();
+  }
+
+  async handleNo() {
+    this.clearOpts();
+    await this.userMsg('🤍 Biroz vaqt kerak…');
+    await this.wait(1000);
+    await this.aiMsg('Yaxshi… men tushunaman.\nLekin bilganingda, u seni kutmoqda. 🌙');
+    await this.wait(800);
+    await this.aiMsg('Qachon tayyor bo\'lsang… u shu yerda bo\'ladi.');
+    await this.wait(900);
+    this.showTgBtn();
+  }
+
+  showTgBtn() {
+    const a = document.createElement('a');
+    a.className = 'tg-btn';
+    a.href = 'https://t.me/Abduqodir_6655';
+    a.target = '_blank';
+    a.innerHTML = `
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.247l-2.05 9.667c-.15.679-.55.842-1.112.523l-3.07-2.264-1.484 1.43c-.164.164-.302.302-.618.302l.22-3.129 5.712-5.162c.248-.22-.054-.343-.383-.123L6.19 14.367l-3.011-.94c-.655-.205-.668-.655.137-.97l11.727-4.524c.547-.2 1.025.122.52.314z"/>
+      </svg>
+      Abduqodir bilan bog'lanish
+    `;
+    this.chat.appendChild(a);
+    this.scrollDown();
+  }
+
+  /* ===== MESSAGE HELPERS ===== */
+  addTyping() {
+    const m = document.createElement('div');
+    m.className = 'msg ai';
+    m.innerHTML = `
+      <div class="msg-label">HEARTOS AI</div>
+      <div class="msg-bubble"><div class="typing-dots"><span></span><span></span><span></span></div></div>
+    `;
+    this.chat.appendChild(m);
+    this.scrollDown();
+    return m;
+  }
+
+  async sysMsg(text) {
+    const m = document.createElement('div');
+    m.className = 'msg system';
+    m.innerHTML = `<div class="msg-bubble">${text}</div>`;
+    this.chat.appendChild(m);
+    this.scrollDown();
+  }
+
+  async aiMsg(html) {
+    const typing = this.addTyping();
+    const len = html.replace(/<[^>]+>/g,'').length;
+    await this.wait(Math.min(700 + len * 17, 2800));
+    typing.remove();
+
+    const m = document.createElement('div');
+    m.className = 'msg ai';
+    const bubble = document.createElement('div');
+    bubble.className = 'msg-bubble';
+    m.innerHTML = `<div class="msg-label">HEARTOS AI</div>`;
+    m.appendChild(bubble);
+    this.chat.appendChild(m);
+
+    await this.typeHTML(bubble, html);
+    this.scrollDown();
+  }
+
+  async userMsg(text) {
+    const m = document.createElement('div');
+    m.className = 'msg user';
+    m.innerHTML = `
+      <div class="msg-label">SEN</div>
+      <div class="msg-bubble">${text}</div>
+    `;
+    this.chat.appendChild(m);
+    this.scrollDown();
+  }
+
+  async typeHTML(el, html) {
+    return new Promise(resolve => {
+      let i = 0;
+      el.innerHTML = '';
+      const go = () => {
+        if (i >= html.length) { resolve(); return; }
+        if (html[i] === '<') {
+          const end = html.indexOf('>', i);
+          if (end !== -1) { el.innerHTML += html.slice(i, end + 1); i = end + 1; setTimeout(go, 0); return; }
+        }
+        el.innerHTML += html[i++];
+        setTimeout(go, 20);
+      };
+      go();
+    });
+  }
+
+  scrollDown() {
+    setTimeout(() => this.chat.scrollTo({ top: this.chat.scrollHeight, behavior: 'smooth' }), 60);
+  }
+
+  wait(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+  /* ===== HEARTS ===== */
+  floatHeart(x, y) {
+    const el = document.createElement('div');
+    el.className = 'hfloat';
+    el.style.left = x + 'px';
+    el.style.top  = y + 'px';
+    el.textContent = ['❤️','💗','💓','💕','💖'][Math.floor(Math.random() * 5)];
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 2400);
+  }
+
+  /* ===== PARTICLES / CANVAS ===== */
+  initParticles() {
+    this.cv = document.getElementById('bgCanvas');
+    this.cx = this.cv.getContext('2d');
+    this.pts = [];
+    this.lt = 0;
+    const resize = () => { this.cv.width = window.innerWidth; this.cv.height = window.innerHeight; };
+    resize();
+    window.addEventListener('resize', resize);
+    window.addEventListener('mousemove', e => {
+      if (Math.random() < 0.04) this.pts.push(this.mkHeart(e.clientX, e.clientY));
+    });
+    this.loop(0);
+  }
+
+  loop(t) {
+    const dt = t - this.lt; this.lt = t;
+    this.cx.clearRect(0, 0, this.cv.width, this.cv.height);
+    if (Math.random() < 0.07) this.pts.push(this.mkStar());
+    this.pts = this.pts.filter(p => { p.upd(dt); p.drw(this.cx); return !p.dead; });
+    requestAnimationFrame(tt => this.loop(tt));
+  }
+
+  mkStar() {
+    let x = Math.random() * this.cv.width;
+    let y = Math.random() * this.cv.height;
+    let a = 0.25 + Math.random() * 0.55;
+    const s = 0.8 + Math.random() * 1.8;
+    const sp = 0.018 + Math.random() * 0.035;
+    return {
+      dead: false,
+      upd(dt) { y -= sp * dt; a -= 0.00018 * dt; if (y < -4 || a <= 0) this.dead = true; },
+      drw(ctx) { ctx.save(); ctx.globalAlpha = a; ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x, y, s, 0, Math.PI*2); ctx.fill(); ctx.restore(); }
+    };
+  }
+
+  mkHeart(ox, oy) {
+    const sz = 6 + Math.random() * 8;
+    const ang = (Math.random() - 0.5) * 0.9;
+    const spd = 0.028 + Math.random() * 0.07;
+    const hue = 325 + Math.random() * 25;
+    let x = ox, y = oy, a = 1, life = 1;
+    const vx = Math.cos(ang) * spd;
+    const vy = -Math.abs(Math.sin(ang)) * spd - 0.018;
+    return {
+      dead: false,
+      upd(dt) { x += vx*dt; y += vy*dt; a -= 0.00055*dt; life -= 0.00055*dt; if (a<=0||life<=0) this.dead=true; },
+      drw(ctx) {
+        ctx.save(); ctx.globalAlpha = a;
+        ctx.fillStyle = `hsla(${hue},90%,68%,1)`;
+        ctx.translate(x, y);
+        const t = sz*0.3;
+        ctx.beginPath();
+        ctx.moveTo(0, t);
+        ctx.bezierCurveTo(0, t-sz/2, -sz, t-sz/2, -sz, t);
+        ctx.bezierCurveTo(-sz, t+sz/2, 0, t+sz, 0, t+sz*1.3);
+        ctx.bezierCurveTo(0, t+sz, sz, t+sz/2, sz, t);
+        ctx.bezierCurveTo(sz, t-sz/2, 0, t-sz/2, 0, t);
+        ctx.closePath(); ctx.fill(); ctx.restore();
+      }
+    };
+  }
+
+  heartBurst(x, y, n = 8) {
+    for (let i = 0; i < n; i++) this.pts.push(this.mkHeart(x, y));
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => new HeartOS());
+</script>
+</body>
+</html>
